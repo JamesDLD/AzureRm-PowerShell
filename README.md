@@ -1,2 +1,2 @@
 # AzureRm-PowerShell
-Share Azure Rm PowerShell scripts with the community
+Share Az and AzureRm PowerShell scripts with the community

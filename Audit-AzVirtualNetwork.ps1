@@ -6,8 +6,8 @@
   REQUIRED : PowerShell modules
     ModuleType Version    Name
     ---------- -------    ----
-    Script     6.4.0      AzureRM.Network
-    Script     5.3.3      AzureRM.profile
+    Script     0.4.0      Az.Network
+    Script     0.4.0      Az.profile
 .PARAMETER LogFile
    Optional
    Log file path
@@ -16,7 +16,7 @@
 .LINK
     https://github.com/JamesDLD/AzureRm-PowerShell
 .EXAMPLE
-   .\Audit-AzureRVirtualNetwork.ps1
+   .\Audit-AzVirtualNetwork.ps1
 #>
 
 param(
@@ -44,7 +44,7 @@ Function VnetSummary_array{
 
         $tableObj | Add-Member -Name AzureSubscriptionName -MemberType  NoteProperty -Value $AzureSubscriptionName
         $tableObj | Add-Member -Name VnetName -MemberType NoteProperty -Value $VnetName
-        $tableObj | Add-Member -Name NonCompliantPolicies -MemberType NoteProperty -Value $VnetResourceGroupName
+        $tableObj | Add-Member -Name VnetResourceGroupName -MemberType NoteProperty -Value $VnetResourceGroupName
         $tableObj | Add-Member -Name AddressPrefixes -MemberType NoteProperty -Value $AddressPrefixes
         $tableObj | Add-Member -Name SubnetsCount -MemberType NoteProperty -Value $SubnetsCount
         $tableObj | Add-Member -Name PeeringsCount -MemberType NoteProperty -Value $PeeringsCount
@@ -76,7 +76,7 @@ Function Generate_Log_Action([string]$Action, [ScriptBlock]$Command, [string]$Lo
 ################################################################################
 Set-StrictMode -Version 2
 $ErrorActionPreference = "Stop"
-$AzureRmSubscriptions = Get-AzureRmSubscription
+$AzureRmSubscriptions = Get-AzSubscription | Where-Object {$_.Name -like "*- vPOD1 -*"}
 $VnetSummary_array = @()
 
 ################################################################################
@@ -96,13 +96,13 @@ if($LogFile -eq "")
     $logFile = $LogPath + "\$date-" + $MyInvocation.MyCommand.Name + ".log"
 }
 
-$Action = "Importing the Module AzureRM.Profile with MinimumVersion 5.3.3"
-$Command = {Import-Module AzureRM.Profile -MinimumVersion 5.3.3 -ErrorAction Stop}
+$Action = "Importing the Module Az.Profile with MinimumVersion 0.4.0"
+$Command = {Import-Module Az.Profile -MinimumVersion 0.4.0 -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 
-$Action = "Importing the Module AzureRM.Network with MinimumVersion 6.4.0"
-$Command = {Import-Module AzureRM.Network -MinimumVersion 6.4.0 -ErrorAction Stop}
+$Action = "Importing the Module Az.Network with MinimumVersion 0.4.0"
+$Command = {Import-Module Az.Network -MinimumVersion 0.4.0 -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 #endregion
@@ -113,17 +113,17 @@ if($Result -eq "Error"){Exit 1}
 foreach ($AzureRmSubscription in $AzureRmSubscriptions)
 {
     $Action = "Getting the AzureRm context for the SubscriptionName : $($AzureRmSubscription.Name)"
-    $Command = {Get-AzureRmSubscription -SubscriptionName $AzureRmSubscription.Name | Set-AzureRmContext -ErrorAction Stop}
+    $Command = {Get-AzSubscription -SubscriptionName $AzureRmSubscription.Name | Set-AzContext -ErrorAction Stop}
     $AzureRmContext = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
     if($AzureRmContext -eq "Error"){Exit 1}
 
     $Action = "Selecting the AzureRm SubscriptionName : $($AzureRmSubscription.Name)"
-    $Command = {Select-AzureRmSubscription -Name $AzureRmSubscription.Name -Context $AzureRmContext -Force -ErrorAction Stop}
+    $Command = {Select-AzSubscription -Name $AzureRmSubscription.Name -Context $AzureRmContext -Force -ErrorAction Stop}
     $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
     if($Result -eq "Error"){Exit 1}
 
     $Action = "Getting the vnet from the SubscriptionName : $($AzureRmSubscription.Name)"
-    $Command = {Get-AzureRmVirtualNetwork -ErrorAction Stop}
+    $Command = {Get-AzVirtualNetwork -ErrorAction Stop}
     $Vnets = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
     if($Result -eq "Error"){Exit 1}
        
@@ -136,7 +136,6 @@ foreach ($AzureRmSubscription in $AzureRmSubscriptions)
             -SubnetsCount $Vnet.Subnets.Count `
             -PeeringsCount $Vnet.VirtualNetworkPeerings.Count
     }
-    
 }
 
 ################################################################################

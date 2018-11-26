@@ -6,3 +6,4 @@ logs/
 
 # Secret files
 #N/A
+.DS_Store
