@@ -6,8 +6,8 @@
   REQUIRED : PowerShell modules
     ModuleType Version    Name
     ---------- -------    ----
-    Script     1.0.2      AzureRM.PolicyInsights
-    Script     5.3.3      AzureRM.Profile
+    Script     0.4.0      Az.PolicyInsights
+    Script     0.4.0      Az.Profile
 .PARAMETER LogFile
    Optional
    Log file path
@@ -21,7 +21,7 @@
     https://docs.microsoft.com/en-us/azure/azure-policy/policy-compliance
 .EXAMPLE
    $PolicySuffixesToFilterOn = @("*enforce-udr-under-vnet*","*enforce-nsg-under-vnet*")
-   .\Audit-AzureRmPolicies.ps1 -PolicySuffixesToFilterOn $PolicySuffixesToFilterOn
+   .\Audit-AzPolicies.ps1 -PolicySuffixesToFilterOn $PolicySuffixesToFilterOn
 #>
 
 param(
@@ -103,7 +103,7 @@ Function Generate_Log_Action([string]$Action, [ScriptBlock]$Command, [string]$Lo
 ################################################################################
 Set-StrictMode -Version 2
 $ErrorActionPreference = "Stop"
-$AzureRmSubscriptions = Get-AzureRmSubscription
+$AzureRmSubscriptions = Get-AzSubscription 
 $PolicyStateSummary_array = @()
 $PolicyState_array = @()
 
@@ -124,13 +124,13 @@ if($LogFile -eq "")
     $logFile = $LogPath + "\$date-" + $MyInvocation.MyCommand.Name + ".log"
 }
 
-$Action = "Importing the Module AzureRM.Profile with MinimumVersion 5.3.3"
-$Command = {Import-Module AzureRM.Profile -MinimumVersion 5.3.3 -ErrorAction Stop}
+$Action = "Importing the Module Az.Profile with MinimumVersion 0.4.0"
+$Command = {Import-Module Az.Profile -MinimumVersion 0.4.0 -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 
-$Action = "Importing the Module AzureRM.PolicyInsights with MinimumVersion 1.0.2"
-$Command = {Import-Module AzureRM.PolicyInsights -MinimumVersion 1.0.2 -ErrorAction Stop}
+$Action = "Importing the Module Az.PolicyInsights with MinimumVersion 0.4.0"
+$Command = {Import-Module Az.PolicyInsights -MinimumVersion 0.4.0 -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 #endregion
@@ -141,12 +141,12 @@ if($Result -eq "Error"){Exit 1}
 foreach ($AzureRmSubscription in $AzureRmSubscriptions)
 {
     $Action = "Getting the AzureRm context for the SubscriptionName : $($AzureRmSubscription.Name)"
-    $Command = {Get-AzureRmSubscription -SubscriptionName $AzureRmSubscription.Name | Set-AzureRmContext -ErrorAction Stop}
+    $Command = {Get-AzSubscription -SubscriptionName $AzureRmSubscription.Name | Set-AzContext -ErrorAction Stop}
     $AzureRmContext = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
     if($AzureRmContext -eq "Error"){Exit 1}
 
     $Action = "Selecting the AzureRm SubscriptionName : $($AzureRmSubscription.Name)"
-    $Command = {Select-AzureRmSubscription -Name $AzureRmSubscription.Name -Context $AzureRmContext -Force -ErrorAction Stop}
+    $Command = {Select-AzSubscription -Name $AzureRmSubscription.Name -Context $AzureRmContext -Force -ErrorAction Stop}
     $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
     if($Result -eq "Error"){Exit 1}
     foreach($PolicySuffix in $PolicySuffixesToFilterOn)
@@ -154,7 +154,7 @@ foreach ($AzureRmSubscription in $AzureRmSubscriptions)
         $AzureRmPolicyStateSummary = $AzureRmPolicyStates = @()
 
         $Action = "[$($AzureRmSubscription.Name)] Getting the policy state summary for policies having the suffix : $PolicySuffix"
-        $Command = {Get-AzureRmPolicyStateSummary -ErrorAction Stop}
+        $Command = {Get-AzPolicyStateSummary -ErrorAction Stop}
         $AzureRmPolicyStateSummary = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
         if($AzureRmPolicyStateSummary -eq "Error"){Exit 1}
         elseif($AzureRmPolicyStateSummary.PolicyAssignments -ne "" -and $AzureRmPolicyStateSummary.Results -ne "")
@@ -167,7 +167,7 @@ foreach ($AzureRmSubscription in $AzureRmSubscriptions)
         }
 
         $Action = "[$($AzureRmSubscription.Name)] Getting the policy state for policies having the suffix : $PolicySuffix"
-        $Command = {Get-AzureRmPolicyState -ErrorAction Stop}
+        $Command = {Get-AzPolicyState -ErrorAction Stop}
         $AzureRmPolicyStates = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
         if($AzureRmPolicyStates -eq "Error"){Exit 1}
         elseif($AzureRmPolicyStates)
