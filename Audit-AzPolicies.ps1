@@ -6,8 +6,8 @@
   REQUIRED : PowerShell modules
     ModuleType Version    Name
     ---------- -------    ----
-    Script     0.4.0      Az.PolicyInsights
-    Script     0.4.0      Az.Profile
+    Script     0.6.1      Az.PolicyInsights
+    Script     0.6.1      Az.Profile
 .PARAMETER LogFile
    Optional
    Log file path
@@ -124,13 +124,13 @@ if($LogFile -eq "")
     $logFile = $LogPath + "\$date-" + $MyInvocation.MyCommand.Name + ".log"
 }
 
-$Action = "Importing the Module Az.Profile with MinimumVersion 0.4.0"
-$Command = {Import-Module Az.Profile -MinimumVersion 0.4.0 -ErrorAction Stop}
+$Action = "Importing the Module Az.Profile with MinimumVersion 0.6.1"
+$Command = {Import-Module Az.Profile -MinimumVersion 0.6.1 -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 
-$Action = "Importing the Module Az.PolicyInsights with MinimumVersion 0.4.0"
-$Command = {Import-Module Az.PolicyInsights -MinimumVersion 0.4.0 -ErrorAction Stop}
+$Action = "Importing the Module Az.PolicyInsights with MinimumVersion 0.6.1"
+$Command = {Import-Module Az.PolicyInsights -MinimumVersion 0.6.1 -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 #endregion

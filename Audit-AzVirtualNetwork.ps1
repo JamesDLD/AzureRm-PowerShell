@@ -6,8 +6,8 @@
   REQUIRED : PowerShell modules
     ModuleType Version    Name
     ---------- -------    ----
-    Script     0.4.0      Az.Network
-    Script     0.4.0      Az.profile
+    Script     0.6.1      Az.Network
+    Script     0.6.1      Az.profile
 .PARAMETER LogFile
    Optional
    Log file path
@@ -76,7 +76,7 @@ Function Generate_Log_Action([string]$Action, [ScriptBlock]$Command, [string]$Lo
 ################################################################################
 Set-StrictMode -Version 2
 $ErrorActionPreference = "Stop"
-$AzureRmSubscriptions = Get-AzSubscription
+$AzureRmSubscriptions = Get-AzSubscription | Where-Object {$_.Name -like "*- vPOD1 -*"}
 $VnetSummary_array = @()
 
 ################################################################################
@@ -96,13 +96,13 @@ if($LogFile -eq "")
     $logFile = $LogPath + "\$date-" + $MyInvocation.MyCommand.Name + ".log"
 }
 
-$Action = "Importing the Module Az.Profile with MinimumVersion 0.4.0"
-$Command = {Import-Module Az.Profile -MinimumVersion 0.4.0 -ErrorAction Stop}
+$Action = "Importing the Module Az.Profile with MinimumVersion 0.6.1"
+$Command = {Import-Module Az.Profile -MinimumVersion 0.6.1 -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 
-$Action = "Importing the Module Az.Network with MinimumVersion 0.4.0"
-$Command = {Import-Module Az.Network -MinimumVersion 0.4.0 -ErrorAction Stop}
+$Action = "Importing the Module Az.Network with MinimumVersion 0.6.1"
+$Command = {Import-Module Az.Network -MinimumVersion 0.6.1 -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 #endregion
