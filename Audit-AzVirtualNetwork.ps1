@@ -76,7 +76,7 @@ Function Generate_Log_Action([string]$Action, [ScriptBlock]$Command, [string]$Lo
 ################################################################################
 Set-StrictMode -Version 2
 $ErrorActionPreference = "Stop"
-$AzureRmSubscriptions = Get-AzSubscription | Where-Object {$_.Name -like "*- vPOD1 -*"}
+$AzureRmSubscriptions = Get-AzSubscription
 $VnetSummary_array = @()
 
 ################################################################################
