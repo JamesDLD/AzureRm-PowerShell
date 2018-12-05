@@ -37,7 +37,8 @@ Function VnetSummary_array{
         [Parameter(Mandatory=$true,ValueFromPipeline=$true)][String] $VnetResourceGroupName,
 		[Parameter(Mandatory=$true,ValueFromPipeline=$true)][String] $AddressPrefixes,
         [Parameter(Mandatory=$true,ValueFromPipeline=$true)][String] $SubnetsCount,
-        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][String] $PeeringsCount
+        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][String] $PeeringsCount,
+        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][String] $PeeringsLimit
 	)
 	Process {
         $private:tableObj=New-Object PSObject
@@ -48,6 +49,7 @@ Function VnetSummary_array{
         $tableObj | Add-Member -Name AddressPrefixes -MemberType NoteProperty -Value $AddressPrefixes
         $tableObj | Add-Member -Name SubnetsCount -MemberType NoteProperty -Value $SubnetsCount
         $tableObj | Add-Member -Name PeeringsCount -MemberType NoteProperty -Value $PeeringsCount
+        $tableObj | Add-Member -Name PeeringsLimit -MemberType NoteProperty -Value $PeeringsLimit
 
         return $tableObj
 	}
@@ -76,7 +78,7 @@ Function Generate_Log_Action([string]$Action, [ScriptBlock]$Command, [string]$Lo
 ################################################################################
 Set-StrictMode -Version 2
 $ErrorActionPreference = "Stop"
-$AzureRmSubscriptions = Get-AzSubscription
+$AzureRmSubscriptions = Get-AzSubscription 
 $VnetSummary_array = @()
 
 ################################################################################
@@ -126,15 +128,23 @@ foreach ($AzureRmSubscription in $AzureRmSubscriptions)
     $Command = {Get-AzVirtualNetwork -ErrorAction Stop}
     $Vnets = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
     if($Result -eq "Error"){Exit 1}
-       
+
     foreach ($Vnet in $Vnets)
     {
+        $Action = "Getting the vnet peering limit on the region : $($Vnet.Location) on the SubscriptionName : $($AzureRmSubscription.Name)"
+        $Command = {Get-AzNetworkUsage -Location $Vnet.Location}
+        $NetworkUsage = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
+        if($Result -eq "Error"){Exit 1}
+           
+        $PeeringsLimit = $($NetworkUsage | Where-Object {$_.ResourceType -like "Peerings per Virtual Network"}).Limit
+
         $VnetSummary_array += VnetSummary_array -AzureSubscriptionName $AzureRmSubscription.Name `
             -VnetName $Vnet.Name `
             -VnetResourceGroupName $Vnet.ResourceGroupName `
             -AddressPrefixes $Vnet.AddressSpace.AddressPrefixes `
             -SubnetsCount $Vnet.Subnets.Count `
-            -PeeringsCount $Vnet.VirtualNetworkPeerings.Count
+            -PeeringsCount $Vnet.VirtualNetworkPeerings.Count `
+            -PeeringsLimit $PeeringsLimit
     }
 }
 
