@@ -106,13 +106,6 @@ $ErrorActionPreference = "Stop"
 $AzureRmSubscriptions = Get-AzSubscription 
 $PolicyStateSummary_array = @()
 $PolicyState_array = @()
-
-################################################################################
-#                                 Prerequisites
-################################################################################
-#region prerequisite
-Set-StrictMode -Version 2
-$ErrorActionPreference = "Stop"
 $workfolder = Split-Path $script:MyInvocation.MyCommand.Path
 $date = Get-Date -UFormat "%d-%m-%Y"
 
