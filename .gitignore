@@ -7,3 +7,4 @@ logs/
 # Secret files
 #N/A
 .DS_Store
+Audit-AzPipWithNsgAllow.ps1

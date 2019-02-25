@@ -3,11 +3,7 @@
   Get Azure Public Ip Address and extract the result in a csv file
 .DESCRIPTION
   REQUIRED : Internet access & Already connected to an Azure tenant
-  REQUIRED : PowerShell modules
-    ModuleType Version    Name
-    ---------- -------    ----
-    Script     0.6.1      Az.Network
-    Script     0.6.1      Az.profile
+  REQUIRED : PowerShell modules, see variables
 .PARAMETER LogFile
    Optional
    Log file path
@@ -77,6 +73,11 @@ $AzureRmSubscriptions = Get-AzSubscription
 $PipSummary_array = @()
 $workfolder = Split-Path $script:MyInvocation.MyCommand.Path
 $date = Get-Date -UFormat "%d-%m-%Y"
+#Module Name, Minimum Version
+$PowerShellModules = @(
+             ("Az.Accounts","1.3.0"),
+             ("Az.Network","1.1.0")
+        )
 
 #If not provided, creating the log file
 if($LogFile -eq "")
@@ -86,15 +87,13 @@ if($LogFile -eq "")
     $logFile = $LogPath + "\$date-" + $MyInvocation.MyCommand.Name + ".log"
 }
 
-$Action = "Importing the Module Az.Profile with MinimumVersion 0.6.1"
-$Command = {Import-Module Az.Profile -MinimumVersion 0.6.1 -ErrorAction Stop}
-$Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
-if($Result -eq "Error"){Exit 1}
-
-$Action = "Importing the Module Az.Network with MinimumVersion 0.6.1"
-$Command = {Import-Module Az.Network -MinimumVersion 0.6.1 -ErrorAction Stop}
-$Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
-if($Result -eq "Error"){Exit 1}
+ForEach ($PowerShellModule in $PowerShellModules)
+{
+    $Action = "Importing the Module $($PowerShellModule[0]) with MinimumVersion $($PowerShellModule[1])"
+    $Command = {Import-Module $PowerShellModule[0] -MinimumVersion $($PowerShellModule[1]) -ErrorAction Stop}
+    $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
+    if($Result -eq "Error"){Exit 1}
+}
 #endregion
 
 ################################################################################
