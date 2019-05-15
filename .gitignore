@@ -3,6 +3,8 @@
 
 # Log directory
 logs/
+log/
+secret/
 
 # Secret files
 #N/A
