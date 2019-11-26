@@ -6,12 +6,12 @@ Folder's golden rule
 
 Secret file
 ------------
--	Content sample of a json secret file used by the script "Create-AzContainer.ps1".
+-	Content sample of a json secret file used by a script, for example "Connect-Az.ps1" and "Create-AzContainer.ps1".
 ```
 {
-    "arm_tenant_id":"xxxxx",
-    "arm_subscription_id":"xxxxx",
-    "arm_client_id":"xxxxx",
-    "arm_client_secret":"xxxxx"
+    "tenant_id":"xxxxx",
+    "subscription_id":"xxxxx",
+    "client_id":"xxxxx",
+    "client_secret":"xxxxx"
 }
 ```

@@ -102,8 +102,8 @@ $Variable = Generate_Log_Action -Action $Action -Command $Command -LogFile $logF
 if($Variable -eq "Error"){Exit 1}
 
 #Generating the credential variable
-$SecureString = ConvertTo-SecureString -AsPlainText $($Login.arm_client_secret) -Force
-$Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $($Login.arm_client_id),$SecureString 
+$SecureString = ConvertTo-SecureString -AsPlainText $($Login.client_secret) -Force
+$Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $($Login.client_id),$SecureString 
 #endregion
 
 ################################################################################
@@ -111,12 +111,12 @@ $Credential = New-Object -TypeName System.Management.Automation.PSCredential -Ar
 ################################################################################
 #region connection
 $Action = "Connecting to the Azure AD Tenant using the json secret file : $SecretFile"
-$Command = {Connect-AzAccount -ServicePrincipal -Credential $credential -TenantId $($Login.arm_tenant_id) -ErrorAction Stop}
+$Command = {Connect-AzAccount -ServicePrincipal -Credential $credential -TenantId $($Login.tenant_id) -ErrorAction Stop}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 
 $Action = "Getting the Azure subscription contained in the json secret file : $SecretFile"
-$Command = {Get-AzSubscription -SubscriptionId $($Login.arm_subscription_id) -ErrorAction Stop}
+$Command = {Get-AzSubscription -SubscriptionId $($Login.subscription_id) -ErrorAction Stop}
 $AzureRmSubscription = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($AzureRmSubscription -eq "Error"){Exit 1}
 
