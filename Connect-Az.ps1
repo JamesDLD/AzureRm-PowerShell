@@ -15,7 +15,10 @@
 .LINK
     https://github.com/JamesDLD/AzureRm-PowerShell
 .EXAMPLE
+  Authenticate a service principal
    .\Connect-Az.ps1
+  Authenticate a user account
+   .\Connect-Az.ps1 -AuthenticateThrough "Credential" -SecretFilePath "./secret/whp-dev-fr.json"
 #>
 
 param(
@@ -24,7 +27,10 @@ param(
   $LogFile,
   [Parameter(Mandatory=$false,HelpMessage='Secret file path')]
   [String]
-  $SecretFilePath="./secret/backend-main-jdld-1.json"
+  $SecretFilePath="./secret/backend-main-jdld-1.json",
+  [Parameter(Mandatory=$false,HelpMessage='Authenticate through a user account (Credential) or a service principal (ServicePrincipal)')]
+  [String]
+  $AuthenticateThrough="ServicePrincipal"
 )
 
 ################################################################################
@@ -83,7 +89,16 @@ $Credential = Generate_Log_Action -Action $Action -Command $Command -LogFile $lo
 if($Credential -eq "Error"){Exit 1}
 
 $Action = "Connecting to the Azure AD Tenant using the json secret file : $SecretFilePath"
-$Command = {Connect-AzAccount -ServicePrincipal -Credential $credential -TenantId $($Login.tenant_id) -ErrorAction Stop}
+$Command = {
+  switch($AuthenticateThrough){
+    Credential {
+      Connect-AzAccount -Credential $credential -TenantId $($Login.tenant_id) -ErrorAction Stop
+    }
+    default {
+      Connect-AzAccount -ServicePrincipal -Credential $credential -TenantId $($Login.tenant_id) -ErrorAction Stop
+    }
+  }
+}
 $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Result -eq "Error"){Exit 1}
 
