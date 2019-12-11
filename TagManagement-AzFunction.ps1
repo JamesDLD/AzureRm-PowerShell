@@ -28,12 +28,13 @@ using namespace System.Net
 param($Request, $TriggerMetadata)
 
 # Write to the Azure Functions log stream.
-Write-Host "PowerShell HTTP trigger function processed a request."
+Write-Output "PowerShell HTTP trigger function processed a request."
 
 # Interact with query parameters or the body of the request.
 $body = $Request.Body
 $action = $body.action
 $resource_group = $body.resource_group
+$count=0
 
 # Ensure that the system identity is enable.
 if ($env:MSI_SECRET -and (Get-Module -ListAvailable Az.Accounts)) {
@@ -60,36 +61,51 @@ if ($env:MSI_SECRET -and (Get-Module -ListAvailable Az.Accounts)) {
                 $resourceid = $resource.resourceId
                 $resourcetags = $resource.Tags
 
-                If ($null -eq $nuresourcetagsll)
+                If ($null -eq $resourcetags)
                 {
                   Write-Output "---------------------------------------------"
-                  Write-Output "Applying the following Tags to $($resourceid)" $RGTags
+                  Write-Output "NEW - Applying the following Tags to $($resourceid)" $RGTags
                   Write-Output "---------------------------------------------"
-                  $Settag = Set-AzResource -ResourceId $resourceid -Tag $RGTagS -Force
+                  Set-AzResource -ResourceId $resourceid -Tag $RGTagS -Force
+                  $count++
                     
                 }
                 Else
                 {
-                  $RGTagFinal = @{}
-                  $RGTagFinal = $RGTags                  
-                  Foreach ($resourcetag in $resourcetags.GetEnumerator())
-                  {          
-                    If ($RGTags.Keys -inotcontains $resourcetag.Key)
+                  $TagUpdate=$false     
+                  Foreach ($RGTag in $RGTags.GetEnumerator())
+                  {       
+                    #Checking if Tags keys of the resource group are all in the resource's tag keys
+                    If ($resourcetags.Keys -inotcontains $RGTag.Key)
                     {                        
-                            Write-Output "------------------------------------------------"
-                            Write-Output "Keydoesn't exist in RG Tags adding to Hash Table" $resourcetag
-                            Write-Output "------------------------------------------------"
-                            $RGTagFinal.Add($resourcetag.Key,$resourcetag.Value)
+                      Write-Output "------------------------------------------------"
+                      Write-Output "Key = $($RGTag.Key) doesn't exist" 
+                      $resourcetags.Add($RGTag.Key,$RGTag.Value)
+                      $TagUpdate=$true
                     }    
+                    Else
+                    {
+                        if ($resourcetags.Item($RGTag.Key) -ne $RGTag.Value)
+                        {
+                          Write-Output "------------------------------------------------"
+                          Write-Output "Key = $($RGTag.Key) doesn't have the RG Tag value = $($RGTag.Value), it's value is = $($resourcetags.Item($RGTag.Key))" 
+                          $resourcetags.Remove($RGTag.Key)
+                          $resourcetags.Add($RGTag.Key,$RGTag.Value)
+                          $TagUpdate=$true
+                        }
+                    }
                   }
-                  Write-Output "---------------------------------------------"
-                  Write-Output "Applying the following Tags to $($resourceid)" $RGTagFinal
-                  Write-Output "---------------------------------------------"
-                  $Settag = Set-AzResource -ResourceId $resourceid -Tag $RGTagFinal -Force
+                  if($TagUpdate)
+                  {
+                    Write-Output "UPDTATE - Applying the following Tags to $($resourceid)" $resourcetags
+                    Write-Output "---------------------------------------------"
+                    Set-AzResource -ResourceId $resourceid -Tag $resourcetags -Force
+                    $count++
+                  }
                 }   
               }
 
-              $body = $RGTags
+              $body = "$count resources have been tagged"
               $status = [HttpStatusCode]::OK
             }
             Catch {$body = $_.Exception.Message;$status = [HttpStatusCode]::Unauthorized}
