@@ -9,7 +9,7 @@ Param(
 # Rest documentation:
 # https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/getproperties
 # http://sql.pawlikowski.pro/2019/03/10/connecting-to-azure-data-lake-storage-gen2-from-powershell-using-rest-api-a-step-by-step-guide/
-# Call sample : ./Get-AdlsProperties.ps1 $sa_name $access_key $container_name "fr"
+# Call sample : ./Get-AdlsPermissions.ps1 $sa_name $access_key $container_name "fr"
 
 $date = [System.DateTime]::UtcNow.ToString("R") # ex: Sun, 10 Mar 2019 11:50:10 GMT
 
