@@ -108,12 +108,12 @@ ForEach ($Group in $Groups)
     if($OU)
     {
         $Action = "Creating the AD group : $($Group.name) in the Organisation Unit : $OU"
-        $Command = {New-ADGroup –name $($Group.name) -Description $($Group.Description) –path $OU -ErrorAction Stop}
+        $Command = {New-ADGroup –name $($Group.name) -GroupScope Global -Description $($Group.Description) –path $OU -ErrorAction Stop}
         $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
         if($Result -eq "Error"){Exit 1}
     }else {
         $Action = "Creating the AD group : $($Group.name)"
-        $Command = {New-ADGroup –name $($Group.name) -Description $($Group.Description) -ErrorAction Stop} 
+        $Command = {New-ADGroup –name $($Group.name) -GroupScope Global -Description $($Group.Description) -ErrorAction Stop} 
         $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
         if($Result -eq "Error"){Exit 1}
     }
