@@ -1,21 +1,22 @@
 [CmdletBinding()]
 Param(
   [Parameter(Mandatory=$true,Position=1)] [string] $StorageAccountName,
-  [Parameter(Mandatory=$True,Position=2)] [string] $AccessKey,
-  [Parameter(Mandatory=$True,Position=3)] [string] $FilesystemName,
-  [Parameter(Mandatory=$True,Position=4)] [string] $Path
+  [Parameter(Mandatory=$True,Position=2)] [string] $FilesystemName,
+  [Parameter(Mandatory=$True,Position=3)] [string] $AccessKey,
+  [Parameter(Mandatory=$True,Position=4)] [string] $Directory, # ex. "/", "/dir1/dir2"
+  [Parameter(Mandatory=$False,Position=5)] [string] $MaxResults = "5000", # up to "5000"
+  [Parameter(Mandatory=$False,Position=6)] [string] $Recursive = "false" # "true","false"
 )
 
 # Rest documentation:
-# https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/getproperties
-# http://sql.pawlikowski.pro/2019/03/10/connecting-to-azure-data-lake-storage-gen2-from-powershell-using-rest-api-a-step-by-step-guide/
-# Call sample : ./Get-AdlsPermissions.ps1 $sa_name $access_key $container_name "fr"
+# https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/list
 
-$date = [System.DateTime]::UtcNow.ToString("R") # ex: Sun, 10 Mar 2019 11:50:10 GMT
+$date = [System.DateTime]::UtcNow.ToString("R")
 
 $n = "`n"
-$method = "HEAD"
+$method = "GET"
 
+# $stringToSign = "GET`n`n`n`n`n`n`n`n`n`n`n`n"
 $stringToSign = "$method$n" #VERB
 $stringToSign += "$n" # Content-Encoding + "\n" +  
 $stringToSign += "$n" # Content-Language + "\n" +  
@@ -36,9 +37,11 @@ $stringToSign +=
 
 $stringToSign +=    
                     <# SECTION: CanonicalizedResource + "\n" #>
-                    "/$StorageAccountName/$FilesystemName/$Path" + $n + 
-                    "action:getAccessControl" + $n +
-                    "upn:true"# 
+                    "/$StorageAccountName/$FilesystemName" + $n + 
+                    "directory:" + $Directory + $n +
+                    "maxresults:" + $MaxResults + $n +
+                    "recursive:$Recursive" + $n +
+                    "resource:filesystem"# 
                     <# SECTION: CanonicalizedResource + "\n" #>
 
 $sharedKey = [System.Convert]::FromBase64String($AccessKey)
@@ -54,8 +57,9 @@ $headers = @{"x-ms-date"=$date}
 $headers.Add("x-ms-version","2018-11-09")
 $headers.Add("Authorization",$authHeader)
 
-$URI = "https://$StorageAccountName.dfs.core.windows.net/" + $FilesystemName + "/" + $Path + "?action=getAccessControl&upn=true"
+$Directory = [System.Web.HttpUtility]::UrlEncode($Directory)
+$URI = "https://$StorageAccountName.dfs.core.windows.net/" + $FilesystemName + "?directory=$Directory&maxresults=$MaxResults&recursive=$Recursive&resource=filesystem"
 
-$result = Invoke-WebRequest -method $method -Uri $URI -Headers $headers
+$result = Invoke-RestMethod -method $method -Uri $URI -Headers $headers
 
-$result.Headers.'x-ms-acl'
+$result

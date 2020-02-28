@@ -3,18 +3,18 @@ Param(
   [Parameter(Mandatory=$true,Position=1)] [string] $StorageAccountName,
   [Parameter(Mandatory=$True,Position=2)] [string] $AccessKey,
   [Parameter(Mandatory=$True,Position=3)] [string] $FilesystemName,
-  [Parameter(Mandatory=$True,Position=4)] [string] $Path,
-  [Parameter(Mandatory=$True,Position=5)] [string] $PermissionString
+  [Parameter(Mandatory=$True,Position=4)] [string] $Path
 )
 
 # Rest documentation:
-# https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update
+# https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/getproperties
 # http://sql.pawlikowski.pro/2019/03/10/connecting-to-azure-data-lake-storage-gen2-from-powershell-using-rest-api-a-step-by-step-guide/
+# Call sample : ./Get-AzAdlsGen2Permissions.ps1 $sa_name $access_key $container_name "fr"
 
 $date = [System.DateTime]::UtcNow.ToString("R") # ex: Sun, 10 Mar 2019 11:50:10 GMT
 
 $n = "`n"
-$method = "PATCH"
+$method = "HEAD"
 
 $stringToSign = "$method$n" #VERB
 $stringToSign += "$n" # Content-Encoding + "\n" +  
@@ -30,7 +30,6 @@ $stringToSign += "$n" # If-Unmodified-Since + "\n" +
 $stringToSign += "$n" # Range + "\n" + 
 $stringToSign +=    
                     <# SECTION: CanonicalizedHeaders + "\n" #>
-                    "x-ms-acl:$PermissionString" + $n +
                     "x-ms-date:$date" + $n + 
                     "x-ms-version:2018-11-09" + $n # 
                     <# SECTION: CanonicalizedHeaders + "\n" #>
@@ -38,7 +37,8 @@ $stringToSign +=
 $stringToSign +=    
                     <# SECTION: CanonicalizedResource + "\n" #>
                     "/$StorageAccountName/$FilesystemName/$Path" + $n + 
-                    "action:setAccessControl"
+                    "action:getAccessControl" + $n +
+                    "upn:true"# 
                     <# SECTION: CanonicalizedResource + "\n" #>
 
 $sharedKey = [System.Convert]::FromBase64String($AccessKey)
@@ -53,18 +53,8 @@ $authHeader = "SharedKey ${StorageAccountName}:$signedSignature"
 $headers = @{"x-ms-date"=$date} 
 $headers.Add("x-ms-version","2018-11-09")
 $headers.Add("Authorization",$authHeader)
-$headers.Add("x-ms-acl",$PermissionString)
 
-$URI = "https://$StorageAccountName.dfs.core.windows.net/" + $FilesystemName + "/" + $Path + "?action=setAccessControl"
+$URI = "https://$StorageAccountName.dfs.core.windows.net/" + $FilesystemName + "/" + $Path + "?action=getAccessControl&upn=true"
+$result = Invoke-WebRequest -method $method -Uri $URI -Headers $headers
 
-Try {
-  Invoke-RestMethod -method $method -Uri $URI -Headers $headers # returns empty response
-  $true
-}
-catch {
-  $ErrorMessage = $_.Exception.Message
-  $StatusDescription = $_.Exception.Response.StatusDescription
-  $false
-
-  Throw $ErrorMessage + " " + $StatusDescription
-}
+$result.Headers.'x-ms-acl'
