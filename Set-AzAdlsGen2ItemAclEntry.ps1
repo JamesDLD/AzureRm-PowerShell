@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-  Set ADSL Gen 2 ACL by applying the Standard and Default ACL and all sub object and the Executive permission on the roots folders.
+  Set ADSL Gen 2 ACL by applying the Standard and Default ACL and all sub objects. 
+  The option "SetPermissionRootDirectories" permit to set privileges to all root folder, for exemple you can set the Executive And Read permission on the roots folders (for info the last Read option permit the use of the Microsoft Azure Storage Explorer client).
 .DESCRIPTION
   REQUIRED : Internet access & Already connected to an Azure tenant
   REQUIRED : PowerShell modules, see variables
@@ -22,10 +23,10 @@
     $ObjectId="The Azure AD user, service principal or group Object ID"
     $AccessControlType="Specify 'Group' or 'User' respectively for an AD group or a User/ServicePrincipal"
     $Permission="rwx"
-    $SetExecutePermissionRootDirectories = $True
+    $SetPermissionRootDirectories = "r-x"
 
     #Variable
-   .\Set-AzAdlsGen2ItemAclEntry.ps1 -SubscriptionName $SubscriptionName -ResourceGroupName $ResourceGroupName -AdlsGen2Name $AdlsGen2Name -FilesystemName $FilesystemName -Path $Path -ObjectId $ObjectId -AccessControlType $AccessControlType -Permission $Permission -SetExecutePermissionRootDirectories $SetExecutePermissionRootDirectories 
+   .\Set-AzAdlsGen2ItemAclEntry.ps1 -SubscriptionName $SubscriptionName -ResourceGroupName $ResourceGroupName -AdlsGen2Name $AdlsGen2Name -FilesystemName $FilesystemName -Path $Path -ObjectId $ObjectId -AccessControlType $AccessControlType -Permission $Permission -SetPermissionRootDirectories $SetPermissionRootDirectories 
 #>
 
 param(
@@ -53,9 +54,10 @@ param(
     [Parameter(Mandatory=$True,HelpMessage='ACL Permission')]
     [String]
     $Permission,
-    [Parameter(Mandatory=$False,HelpMessage='Set Execute Permission to Root Directories')]
-    [Bool]
-    $SetExecutePermissionRootDirectories = $True,
+    [Parameter(Mandatory=$False,HelpMessage='Set Permission to Root Directories')]
+    [String]
+    [ValidateSet("r-x","--x")]
+    $SetPermissionRootDirectories,
     [Parameter(Mandatory=$False,HelpMessage='Log file path')]
     [String]
     $LogFile
@@ -142,7 +144,7 @@ $Context = $storageAccount.Context
 #endregion
 
 #region Set Execute permission on root directory, this is required to traverse the child items of a directory
-if($SetExecutePermissionRootDirectories -and $Path -ne "/")
+if($SetPermissionRootDirectories -and $Path -ne "/")
 {
   foreach($root_path in $root_paths)
   {
@@ -154,23 +156,41 @@ if($SetExecutePermissionRootDirectories -and $Path -ne "/")
     $acl=$Parent.ACL
     [Collections.Generic.List[System.Object]]$aclnew =$acl
     $ParentItemScope=$True
+    $Cleaning=$False
+    [Collections.Generic.List[System.Object]]$acltoclean = @()
 
     # To avoid duplicate ACL, remove the ACL entries that will be added later.
     foreach ($a in $aclnew)
     {
-        if ($a.AccessControlType -eq $AccessControlType -and $a.EntityId -eq $ObjectId -and "$($a.Permissions.ToSymbolicString())" -eq "--x" -and $a.DefaultScope -eq $False)
+        if ($a.AccessControlType -eq $AccessControlType -and $a.EntityId -eq $ObjectId -and $a.DefaultScope -eq $False)
         {
-            $ParentItemScope=$False
+            if("$($a.Permissions.ToSymbolicString())" -eq $SetPermissionRootDirectories)
+            {
+                $ParentItemScope=$False
+            }
+            # To avoid duplicate ACL with another Permission, record the ACL entry to delete.
+            else {
+                $acltoclean.Add($a)
+                $Cleaning=$True
+            }
         }
+    }
+
+    # To avoid duplicate ACL with wrong AccessControlType, remove the ACL entries.
+    foreach ($a in $acltoclean)
+    {
+        $aclnew.Remove($a)
     }
 
     if($ParentItemScope)
     {
-        $Action="Adding Item Scope $AccessControlType scope ACL Permission : --x the child items under path : $($Parent.Path) for Object id : $ObjectId"
-        $Command = {New-AzDataLakeGen2ItemAclObject -AccessControlType $AccessControlType -EntityId $ObjectId -Permission "--x" -InputObject $aclnew -ErrorAction Stop}
+        $Action="Adding Item Scope $AccessControlType scope ACL Permission : $SetPermissionRootDirectories the child items under path : $($Parent.Path) for Object id : $ObjectId"
+        $Command = {New-AzDataLakeGen2ItemAclObject -AccessControlType $AccessControlType -EntityId $ObjectId -Permission $SetPermissionRootDirectories -InputObject $aclnew -ErrorAction Stop}
         $aclnew = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
         if($aclnew -eq "Error"){Exit 1}   
-        
+    }
+    if($ParentItemScope -or $Cleaning)  
+    {
         $Action="Updating ACL on server"
         $Command = {Update-AzDataLakeGen2Item -Context $Context -FileSystem $FilesystemName -Path $($Parent.Path) -Acl $aclnew -ErrorAction Stop}
         $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
@@ -265,4 +285,5 @@ foreach ($Child in $Childs)
         if($Result -eq "Error"){Exit 1}    
     }
 }
+
 #endregion
