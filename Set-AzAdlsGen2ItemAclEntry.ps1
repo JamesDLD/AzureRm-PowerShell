@@ -39,10 +39,10 @@ param(
     [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 Name')]
     [String]
     $AdlsGen2Name,
-    [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 Name')]
+    [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 File Sytem Name')]
     [String]
     $FilesystemName,
-    [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 Name')]
+    [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 Directory Path')]
     [String]
     $Path,
     [Parameter(Mandatory=$True,HelpMessage='Azure AD user, service principal or group object Id.')]
