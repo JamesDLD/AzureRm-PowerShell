@@ -39,16 +39,16 @@ param(
     [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 Name')]
     [String]
     $AdlsGen2Name,
-    [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 Name')]
+    [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 File System Name')]
     [String]
     $FilesystemName,
-    [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 Name')]
+    [Parameter(Mandatory=$True,HelpMessage='Azure Data Lake Storage Gen 2 Path')]
     [String]
     $Path,
     [Parameter(Mandatory=$True,HelpMessage='Azure AD user, service principal or group object Id.')]
     [String]
     $ObjectId,
-    [Parameter(Mandatory=$True,HelpMessage='Access Control type, could be Group or User')]
+    [Parameter(Mandatory=$True,HelpMessage='Access Control type, could be group or user')]
     [String]
     $AccessControlType,
     [Parameter(Mandatory=$True,HelpMessage='ACL Permission')]
@@ -94,8 +94,8 @@ $ErrorActionPreference = "Stop"
 $workfolder = Split-Path $script:MyInvocation.MyCommand.Path
 $date = Get-Date -UFormat "%d-%m-%Y"
 $PowerShellModules = @(
-            ("Az.Accounts","1.7.2"),
-            ("Az.Storage","1.9.1")
+            ("Az.Accounts","1.7.5"),
+            ("Az.Storage","1.14.0")
         )
 $root_paths=@('/')
 if($Path -ne "/")
@@ -103,6 +103,7 @@ if($Path -ne "/")
     for($i=0 ; $i -lt $($Path.Split("/").Count-1) ; $i++)
     {$root_paths+=$Path.Split("/")[0..$i] -join "/"}
 }
+#$AccessControlType=$AccessControlType.ToLower() #Now requires lower later, was not the case before
         
 #If not provided, creating the log file
 if($LogFile -eq "")
@@ -148,10 +149,19 @@ if($SetPermissionRootDirectories -and $Path -ne "/")
 {
   foreach($root_path in $root_paths)
   {
-    $Action="Getting the path : $root_path"
-    $Command = {Get-AzDataLakeGen2Item -Context $Context -FileSystem $FilesystemName -Path $root_path -ErrorAction Stop}
-    $Parent = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
-    if($Parent -eq "Error"){Exit 1}
+    if($root_path -eq "/")
+    {
+        $Action="Getting the root path"
+        $Command = {Get-AzDataLakeGen2Item -Context $Context -FileSystem $FilesystemName -ErrorAction Stop}
+        $Parent = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
+        if($Parent -eq "Error"){Exit 1}
+    }
+    else {
+        $Action="Getting the path : $root_path"
+        $Command = {Get-AzDataLakeGen2Item -Context $Context -FileSystem $FilesystemName -Path $root_path -ErrorAction Stop}
+        $Parent = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
+        if($Parent -eq "Error"){Exit 1}
+    }
 
     $acl=$Parent.ACL
     [Collections.Generic.List[System.Object]]$aclnew =$acl
@@ -159,12 +169,14 @@ if($SetPermissionRootDirectories -and $Path -ne "/")
     $Cleaning=$False
     [Collections.Generic.List[System.Object]]$acltoclean = @()
 
+
+
     # To avoid duplicate ACL, remove the ACL entries that will be added later.
     foreach ($a in $aclnew)
     {
         if ($a.AccessControlType -eq $AccessControlType -and $a.EntityId -eq $ObjectId -and $a.DefaultScope -eq $False)
         {
-            if("$($a.Permissions.ToSymbolicString())" -eq $SetPermissionRootDirectories)
+            if("$($a.GetSymbolicRolePermissions())" -eq $SetPermissionRootDirectories)
             {
                 $ParentItemScope=$False
             }
@@ -185,29 +197,44 @@ if($SetPermissionRootDirectories -and $Path -ne "/")
     if($ParentItemScope)
     {
         $Action="Adding Item Scope $AccessControlType scope ACL Permission : $SetPermissionRootDirectories the child items under path : $($Parent.Path) for Object id : $ObjectId"
-        $Command = {New-AzDataLakeGen2ItemAclObject -AccessControlType $AccessControlType -EntityId $ObjectId -Permission $SetPermissionRootDirectories -InputObject $aclnew -ErrorAction Stop}
+        $Command = {New-AzDataLakeGen2ItemAclObject -AccessControlType $AccessControlType -EntityId $ObjectId -Permission $SetPermissionRootDirectories -InputObject $acl -ErrorAction Stop}
         $aclnew = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
         if($aclnew -eq "Error"){Exit 1}   
     }
     if($ParentItemScope -or $Cleaning)  
     {
-        $Action="Updating ACL on server"
-        $Command = {Update-AzDataLakeGen2Item -Context $Context -FileSystem $FilesystemName -Path $($Parent.Path) -Acl $aclnew -ErrorAction Stop}
-        $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
-        if($Result -eq "Error"){Exit 1}    
+        
+        if($($Parent.Path) -eq "/")
+        {
+            $Action="Updating ACL on server at root file system level"
+            $Command = {Update-AzDataLakeGen2Item -Context $Context -FileSystem $FilesystemName -Acl $aclnew -ErrorAction Stop}
+            $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
+            if($Result -eq "Error"){Exit 1}    
+        }
+        else {
+            $Action="Updating ACL on server at path : $($Parent.Path)"
+            $Command = {Update-AzDataLakeGen2Item -Context $Context -FileSystem $FilesystemName -Path $Parent.Path -Acl $aclnew -ErrorAction Stop}
+            $Result = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
+            if($Result -eq "Error"){Exit 1}    
+        }
     }
   }
 }
 #endregion
 
 #region Set privilege and given path and sub objects
+$Action="Getting the path : $Path"
+$Command = {Get-AzDataLakeGen2Item -Context $Context -FileSystem $FilesystemName -Path $Path -ErrorAction Stop}
+$Main = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
+if($Main -eq "Error"){Exit 1}
+
 $Action="Getting the child items under path : $Path"
 $Command = {Get-AzDataLakeGen2ChildItem -Context $Context -FileSystem $FilesystemName -Path $Path -Recurse -FetchPermission -ErrorAction Stop}
 $Childs = Generate_Log_Action -Action $Action -Command $Command -LogFile $logFile
 if($Childs -eq "Error"){Exit 1}
 
 $p=1
-foreach ($Child in $Childs)
+foreach ($Child in $($Main,$Childs))
 {
     Write-Progress -Activity "Privileges assignment in Progress" -Status "Progress:" -PercentComplete (($p / @($Childs).Count) *100);
     $p++
@@ -225,7 +252,7 @@ foreach ($Child in $Childs)
         {
             if($a.DefaultScope -eq $True) 
             {
-                if("$($a.Permissions.ToSymbolicString())" -eq $Permission)
+                if("$($a.GetSymbolicRolePermissions())" -eq $Permission)
                 {
                     $DefaultScope=$False
                 }
@@ -237,7 +264,7 @@ foreach ($Child in $Childs)
             }
             elseif ($a.DefaultScope -eq $False)
             {
-                if("$($a.Permissions.ToSymbolicString())" -eq $Permission)
+                if("$($a.GetSymbolicRolePermissions())" -eq $Permission)
                 {
                     $ItemScope=$False
                 }
