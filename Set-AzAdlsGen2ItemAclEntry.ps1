@@ -236,7 +236,7 @@ if($Childs -eq "Error"){Exit 1}
 $p=1
 foreach ($Child in $($Main,$Childs))
 {
-    Write-Progress -Activity "Privileges assignment in Progress" -Status "Progress:" -PercentComplete (($p / @($Childs).Count) *100);
+    Write-Progress -Activity "Privileges assignment in Progress" -Status "Progress:" -PercentComplete (($p / @($($Main,$Childs)).Count) *100);
     $p++
 
     # Create the new ACL object.
