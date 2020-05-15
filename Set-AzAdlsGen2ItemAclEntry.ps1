@@ -56,7 +56,7 @@ param(
     $Permission,
     [Parameter(Mandatory=$False,HelpMessage='Set Permission to Root Directories')]
     [String]
-    [ValidateSet("r-x","--x")]
+    [ValidateSet("r-x","--x","none")]
     $SetPermissionRootDirectories,
     [Parameter(Mandatory=$False,HelpMessage='Log file path')]
     [String]
@@ -145,7 +145,7 @@ $Context = $storageAccount.Context
 #endregion
 
 #region Set Execute permission on root directory, this is required to traverse the child items of a directory
-if($SetPermissionRootDirectories -and $Path -ne "/")
+if($SetPermissionRootDirectories -ne "none" -and $Path -ne "/")
 {
   foreach($root_path in $root_paths)
   {
