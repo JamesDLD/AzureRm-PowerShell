@@ -12,8 +12,8 @@ Select-AzSubscription -Name $AzureRmSubscriptionName -Context $AzureRmContext -F
 $Vmss = Get-AzVmss -ResourceGroupName $RgName -VMScaleSetName $VMScaleSetName
 
 # Add DNS servers on the IP configuration
-$Vmss.VirtualMachineProfile.NetworkProfile.networkInterfaceConfigurations.DnsSettings.DnsServers.Add("10.0.1.4")
-$Vmss.VirtualMachineProfile.NetworkProfile.networkInterfaceConfigurations.DnsSettings.DnsServers.Add("10.0.1.5")
+$Vmss.VirtualMachineProfile.NetworkProfile.networkInterfaceConfigurations.DnsSettings.DnsServers.Add("10.2.1.4")
+$Vmss.VirtualMachineProfile.NetworkProfile.networkInterfaceConfigurations.DnsSettings.DnsServers.Add("10.2.1.5")
 
 # Update the model of the scale set with the new configuration in the local PowerShell object
 Update-AzVmss -ResourceGroupName $RgName -VMScaleSetName $VMScaleSetName -virtualMachineScaleSet $vmss
