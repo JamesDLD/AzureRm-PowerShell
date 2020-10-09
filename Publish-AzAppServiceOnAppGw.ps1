@@ -9,7 +9,7 @@ Prerequisites
 - Key Vault
 
 Tips
-Get-AzApplicationGatewayHttpListener -ApplicationGateway $appgw | Select-Object Name,Protocol,HostNames,Hostname
+Get-AzApplicationGatewayHttpListener -ApplicationGateway $appgw | Select-Object Name,Protocol,Hostnames,Hostname
 
 #>
 #Based on 
@@ -29,7 +29,7 @@ $Rules = @(
   #   ApplicationName = "myapp1dev" #only letters!
   #   CertificateName = "myapp1devwebhelpcom"
   #   SubjectName     = "CN=myapp1-dev.webhelp.com"
-  #   HostNames       = "myapp1-dev.webhelp.com"
+  #   Hostname       = "myapp1-dev.webhelp.com"
   #   BackendFqdns    = "dev-myapp1-uiapp1.azurewebsites.net"
   #   ProbePath       = "/"
   # };
@@ -37,7 +37,7 @@ $Rules = @(
     ApplicationName = "myapp1apidev" #only letters!
     CertificateName = "myapp1apidevdld23com"
     SubjectName     = "CN=myapp1-api-dev.dld23.com"
-    HostNames       = "myapp1-api-dev.dld23.com"
+    Hostname       = "myapp1-api-dev.dld23.com"
     BackendFqdns    = "dev-myapp1-apiapp1.azurewebsites.net"
     ProbePath       = "/"
   };
@@ -68,20 +68,21 @@ Foreach ($Rule in $Rules) {
   Start-Sleep -s 10 #Wait for the certificate to be available
   $certificate = Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $Rule.CertificateName
   $secretId = $certificate.SecretId.Replace($certificate.Version, "")
+
+  #Specify the Certificate
+  Write-Host "Pointing the TLS/SSL certificate to our key vault" -ForegroundColor Cyan
+  $sslCert01 = Get-AzApplicationGatewaySslCertificate -ApplicationGateway $appgw | where-object { $_.Name -like "$($Rule.CertificateName)" }
+  if (!$sslCert01) {
+    Write-Host "Creating the Certificat $($Rule.CertificateName)"
+    Add-AzApplicationGatewaySslCertificate -ApplicationGateway $appgw -Name $($Rule.CertificateName) -KeyVaultSecretId $secretId
+    $sslCert01 = Get-AzApplicationGatewaySslCertificate -ApplicationGateway $appgw | where-object { $_.Name -like "$($Rule.CertificateName)" }
+  }
   #endregion
 
+  #region Listener
   #region Application Gateway rule
   $AppGw = Get-AzApplicationGateway -Name $AppGwName -ResourceGroupName $RgName
   Write-Host "Creating pool and front-end ports" -ForegroundColor Cyan
-
-  #Specify the Backend Address Pool
-  $pool = Get-AzApplicationGatewayBackendAddressPool -ApplicationGateway $appgw | where-object { $_.Name -like "$($Rule.ApplicationName)-pool1" }
-  if (!$pool) {
-    Write-Host "Creating the Pool $($Rule.ApplicationName)-pool1"
-    Add-AzApplicationGatewayBackendAddressPool -ApplicationGateway $appgw -Name "$($Rule.ApplicationName)-pool1" `
-      -BackendFqdns $Rule.BackendFqdns
-    $pool = Get-AzApplicationGatewayBackendAddressPool -ApplicationGateway $appgw | where-object { $_.Name -like "$($Rule.ApplicationName)-pool1" }
-  }
 
   #Specify the Front End Port
   $fp01 = Get-AzApplicationGatewayFrontendPort -ApplicationGateway $appgw | where-object { $_.Port -like "443" }
@@ -98,15 +99,6 @@ Foreach ($Rule in $Rules) {
     $fp02 = Get-AzApplicationGatewayFrontendPort -ApplicationGateway $appgw | where-object { $_.Port -like "80" }
   }
 
-  #Specify the Certificate
-  Write-Host "Pointing the TLS/SSL certificate to our key vault" -ForegroundColor Cyan
-  $sslCert01 = Get-AzApplicationGatewaySslCertificate -ApplicationGateway $appgw | where-object { $_.Name -like "$($Rule.CertificateName)" }
-  if (!$sslCert01) {
-    Write-Host "Creating the Certificat $($Rule.CertificateName)"
-    Add-AzApplicationGatewaySslCertificate -ApplicationGateway $appgw -Name $($Rule.CertificateName) -KeyVaultSecretId $secretId
-    $sslCert01 = Get-AzApplicationGatewaySslCertificate -ApplicationGateway $appgw | where-object { $_.Name -like "$($Rule.CertificateName)" }
-  }
-
   #Specify the HTTP listener
   Write-Host "Creating listeners, rules, and autoscale" -ForegroundColor Cyan
   $fipconfig01 = Get-AzApplicationGatewayFrontendIPConfig -ApplicationGateway $AppGw | Where-Object { $_.PublicIPAddress -ne $null }
@@ -115,7 +107,7 @@ Foreach ($Rule in $Rules) {
   if (!$listener01) {
     Write-Host "Creating the listener $($Rule.ApplicationName)-ln-443)"
     Add-AzApplicationGatewayHttpListener -ApplicationGateway $appgw -Name "$($Rule.ApplicationName)-ln-443" -Protocol Https `
-      -FrontendIPConfiguration $fipconfig01 -FrontendPort $fp01 -SslCertificate $sslCert01 -HostNames $Rule.HostNames
+      -FrontendIPConfiguration $fipconfig01 -FrontendPort $fp01 -SslCertificate $sslCert01 -Hostname $Rule.Hostname
     $listener01 = Get-AzApplicationGatewayHttpListener -ApplicationGateway $appgw | Where-Object { $_.Name -eq "$($Rule.ApplicationName)-ln-443" }
   }
 
@@ -123,7 +115,7 @@ Foreach ($Rule in $Rules) {
   if (!$listener02) {
     Write-Host "Creating the listener $($Rule.ApplicationName)-ln-80)"
     Add-AzApplicationGatewayHttpListener -ApplicationGateway $appgw -Name "$($Rule.ApplicationName)-ln-80" -Protocol Http `
-      -FrontendIPConfiguration $fipconfig01 -FrontendPort $fp02 -HostNames $Rule.HostNames
+      -FrontendIPConfiguration $fipconfig01 -FrontendPort $fp02 -Hostname $Rule.Hostname
     $listener02 = Get-AzApplicationGatewayHttpListener -ApplicationGateway $appgw | Where-Object { $_.Name -eq "$($Rule.ApplicationName)-ln-80" }
   }
 
@@ -139,7 +131,9 @@ Foreach ($Rule in $Rules) {
       -IncludeQueryString $true
     $redirectConfig = Get-AzApplicationGatewayRedirectConfiguration -ApplicationGateway $appgw | Where-Object { $_.Name -eq "$($Rule.ApplicationName)-rqrt-https" }
   }
+  #endregion
 
+  #region HTTP header rewrite
   #Specify your HTTP header rewrite rule configuration
   $RewriteRuleSet = Get-AzApplicationGatewayRewriteRuleSet -ApplicationGateway $appgw | Where-Object { $_.Name -eq "appservice-rwrst1" }
   if (!$RewriteRuleSet) {
@@ -180,7 +174,9 @@ Foreach ($Rule in $Rules) {
     #Set-AzApplicationGatewayRewriteRuleSet -ApplicationGateway $appgw -Name appservice-rwrst1 -RewriteRule $LoginRedirectToAADrewriteRule,$CallbackFromAADrewriteRule,$LoginRedirectToAADrewriteRule2
     $RewriteRuleSet = Get-AzApplicationGatewayRewriteRuleSet -ApplicationGateway $appgw | Where-Object { $_.Name -eq "appservice-rwrst1" }
   }
+  #region
 
+  #region Backend Pool
   #Specify the Health Probe
   $ProbeConfig = Get-AzApplicationGatewayProbeConfig -ApplicationGateway $appgw | Where-Object { $_.Name -eq "$($Rule.ApplicationName)-hpb" }
   if (!$ProbeConfig) {
@@ -188,6 +184,15 @@ Foreach ($Rule in $Rules) {
     $match = New-AzApplicationGatewayProbeHealthResponseMatch -StatusCode "200-399","401"
     Add-AzApplicationGatewayProbeConfig -ApplicationGateway $appgw -Name "$($Rule.ApplicationName)-hpb" -Protocol Https -Path $Rule.ProbePath -Interval 30 -Timeout 30 -UnhealthyThreshold 3 -Match $match -PickHostNameFromBackendHttpSettings
     $ProbeConfig = Get-AzApplicationGatewayProbeConfig -ApplicationGateway $appgw | Where-Object { $_.Name -eq "$($Rule.ApplicationName)-hpb" }
+  }
+
+  #Specify the Backend Address Pool
+  $pool = Get-AzApplicationGatewayBackendAddressPool -ApplicationGateway $appgw | where-object { $_.Name -like "$($Rule.ApplicationName)-pool1" }
+  if (!$pool) {
+    Write-Host "Creating the Pool $($Rule.ApplicationName)-pool1"
+    Add-AzApplicationGatewayBackendAddressPool -ApplicationGateway $appgw -Name "$($Rule.ApplicationName)-pool1" `
+      -BackendFqdns $Rule.BackendFqdns
+    $pool = Get-AzApplicationGatewayBackendAddressPool -ApplicationGateway $appgw | where-object { $_.Name -like "$($Rule.ApplicationName)-pool1" }
   }
   
   #Specify the Backend Http
