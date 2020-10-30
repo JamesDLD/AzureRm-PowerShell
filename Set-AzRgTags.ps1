@@ -16,7 +16,7 @@
 .LINK
     https://github.com/JamesDLD/AzureRm-PowerShell
 .EXAMPLE
-   ./Set-AzRgTags.ps1 -CsvFilePath "./RgsToTagFr.csv"
+   ./Set-AzRgTags.ps1 -CsvFilePath "./logs/30-10-2020-Get-AzRgTags.ps1.csv"
 #>
 
 param(
