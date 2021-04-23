@@ -192,11 +192,11 @@ Foreach ($Rule in $Rules) {
     Write-Host "Adding Backend setting $($Rule.ApplicationName)-be-htst1" -ForegroundColor Cyan
     if($Rule.AuthenticationOnApp)
     {
-      Write-host "$($Rule.ApplicationName) PickHostNameFromBackendAddress" -ForegroundColor Red
+      Write-host "$($Rule.ApplicationName) PickHostNameFromBackendAddress" -ForegroundColor Cyan
       Add-AzApplicationGatewayBackendHttpSetting -ApplicationGateway $appgw -Name "$($Rule.ApplicationName)-be-htst1" -Port $Rule.ProbePort `
       -Protocol $Rule.ProbeProtocol -CookieBasedAffinity Disabled -Probe $ProbeConfig | Out-Null
     }else{
-      Write-host "$($Rule.ApplicationName) Nothing" -ForegroundColor Red
+      Write-host "$($Rule.ApplicationName) Nothing" -ForegroundColor Cyan
       Add-AzApplicationGatewayBackendHttpSetting -ApplicationGateway $appgw -Name "$($Rule.ApplicationName)-be-htst1" -Port $Rule.ProbePort `
       -Protocol $Rule.ProbeProtocol -CookieBasedAffinity Disabled -Probe $ProbeConfig -PickHostNameFromBackendAddress | Out-Null
     }
